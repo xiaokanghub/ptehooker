@@ -1,0 +1,40 @@
+# Build artifacts
+*.o
+*.kpm
+*.ko
+*.so
+*.a
+*.elf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Local caches
+/tmp/
+ptehook_lib_cache/
+
+# Device pulls (debug dumps)
+*.bin
+libart.so
+libart_copy.so
+*_ghost.bin
+*_target.bin
+*_maps.txt
+ui.xml
+
+# Don't commit real superkey / device-specific configs
+superkey
+superkey.txt
+.adb_serial

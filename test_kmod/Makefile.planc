@@ -1,0 +1,62 @@
+# Makefile for ptehook Plan C v2 (pure kernel DBI + no-VMA ghost)
+#
+# Builds ptehook_planc_v2.kpm from:
+#   - ptehook_planc_v2.c  (main KPM entry points + command dispatch)
+#   - dbi_kern.c          (kernel DBI engine)
+#   - ghost_mm.c          (VMA-less ghost page allocator)
+#
+# Key cflags:
+#   -fno-pic              → no GOT relocs (KP relo.c lacks R_AARCH64_ADR_GOT_PAGE)
+#   -mcmodel=large        → MOVZ/MOVK sequence for 64-bit addresses
+
+# Override via env or cmdline:
+#   make -f Makefile.planc KP_DIR=/path/to/KernelPatch NDK_DIR=/path/to/ndk
+KP_DIR   ?= $(HOME)/KernelPatch
+NDK_DIR  ?= $(HOME)/Android/Sdk/ndk/21.1.6352462/toolchains/llvm/prebuilt/linux-x86_64
+CC       := $(NDK_DIR)/bin/aarch64-linux-android29-clang
+LD       := $(NDK_DIR)/bin/aarch64-linux-android-ld
+OBJDUMP  := $(NDK_DIR)/bin/aarch64-linux-android-objdump
+
+INCLUDE_DIRS := \
+    $(KP_DIR)/kernel \
+    $(KP_DIR)/kernel/include \
+    $(KP_DIR)/kernel/patch/include \
+    $(KP_DIR)/kernel/linux/include \
+    $(KP_DIR)/kernel/linux/arch/arm64/include \
+    $(KP_DIR)/kernel/linux/tools/arch/arm64/include
+
+INCFLAGS := $(foreach d,$(INCLUDE_DIRS),-I$(d))
+
+CFLAGS := -target aarch64-linux-android \
+          -O2 -Wall \
+          -fno-stack-protector -fno-common -fno-builtin \
+          -fno-pic \
+          -nostdlib -nostdinc \
+          -ffreestanding \
+          -mgeneral-regs-only \
+          -mcmodel=large \
+          -I. \
+          $(INCFLAGS)
+
+OBJS := ptehook_planc_v2.o dbi_kern.o ghost_mm.o
+
+.PHONY: all clean disasm check
+
+all: ptehook_planc_v2.kpm
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+ptehook_planc_v2.kpm: $(OBJS)
+	$(LD) -r -o $@ $^
+
+# compile-only check for dbi_kern + ghost_mm (no linking)
+check: dbi_kern.o ghost_mm.o
+	@echo "=== dbi_kern.o + ghost_mm.o compiled ==="
+	@ls -la dbi_kern.o ghost_mm.o
+
+disasm:
+	$(OBJDUMP) -d ptehook_planc_v2.kpm | head -200
+
+clean:
+	rm -f $(OBJS) ptehook_planc_v2.kpm dbi_kern.o ghost_mm.o
